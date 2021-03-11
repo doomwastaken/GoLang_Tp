@@ -22,8 +22,9 @@ func ExecutePipeline(jobs ...job) {
 		wg.Add(1)
 		go func(in, out chan interface{}, jb job) {
 			defer wg.Done()
+			defer close(out)
 			jb(in, out)
-			close(out)
+			
 		}(in, out, jb)
 		in = out
 	}
@@ -57,8 +58,7 @@ func SingleHash(in, out chan interface{}) {
 				
 			}()
 			wgIn.Wait()
-			hash:= lHash + "~" + rHash
-			out <- hash
+			out <- lHash + "~" + rHash
 		}(i)
 	}
 	wgOut.Wait()
@@ -71,7 +71,6 @@ func MultiHash(in, out chan interface{}) {
 		wgOut.Add(1)
 		go func(i interface{}) {
 			defer wgOut.Done()
-			mutex := &sync.Mutex{}
 			wgIn := &sync.WaitGroup{}
 			hashs := make([]string, thCount)
 			data := i.(string)
@@ -83,10 +82,8 @@ func MultiHash(in, out chan interface{}) {
 				}(th)
 			}
 			wgIn.Wait()
-			mutex.Lock()
 			hash := strings.Join(hashs, "")
 			out <- hash
-			mutex.Unlock()
 		}(i)
 	}
 	wgOut.Wait()
